@@ -88,16 +88,27 @@ h1{
     height: 100%;
     border-radius: 32px;
     overflow: hidden;
-    background: #000; /* Fundo preto caso o vídeo demore a carregar */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: #000;
+    position: relative; /* Necessário para alinhar os vídeos sobrepostos */
 }
 
+/* Estilo para os vídeos sobrepostos */
 .screen video{
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Garante que o vídeo apareça inteiro sem quebrar */
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0; /* Por padrão, ficam invisíveis */
+    transition: opacity 0.2s ease-in-out; /* Suaviza a transição entre passos */
+    pointer-events: none;
+}
+
+/* Classe que torna o vídeo visível */
+.screen video.visivel {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* Navegação */
@@ -186,7 +197,8 @@ button:disabled {
 <div class="phone">
     <div class="notch"></div>
     <div class="screen">
-        <video id="video" autoplay muted loop playsinline src="01.mp4"></video>
+        <video id="videoA" class="visivel" autoplay muted loop playsinline></video>
+        <video id="videoB" autoplay muted loop playsinline></video>
     </div>
 </div>
 
@@ -209,8 +221,8 @@ const slides = [
 ];
 
 let atual = 0;
+let usandoVideoA = true;
 
-// Cria as bolinhas uma única vez ao iniciar
 function inicializarDots(){
     const dotsContainer = document.getElementById("dots");
     dotsContainer.innerHTML = "";
@@ -237,7 +249,8 @@ function atualizarDots() {
 }
 
 function atualizar(){
-    const video = document.getElementById("video");
+    const videoA = document.getElementById("videoA");
+    const videoB = document.getElementById("videoB");
     const phone = document.querySelector(".phone");
     const btnAnterior = document.getElementById("btn-anterior");
     const btnProximo = document.getElementById("btn-proximo");
@@ -249,29 +262,60 @@ function atualizar(){
         phone.classList.remove("landscape");
     }
 
-    // Atualiza a fonte do vídeo de maneira compatível com navegadores estritos
-    if (video.getAttribute('src') !== slides[atual].video) {
-        video.setAttribute('src', slides[atual].video);
-        video.load(); // Força o navegador a carregar o novo arquivo de vídeo
-        video.play().catch(error => {
-            console.log("A reprodução automática foi prevenida ou o vídeo não foi encontrado:", error);
-        });
+    // Identifica qual elemento está ativo e qual está na reserva (buffer)
+    const videoAtivo = usandoVideoA ? videoA : videoB;
+    const videoReserva = usandoVideoA ? videoB : videoA;
+
+    // Atualiza o vídeo ativo
+    if (videoAtivo.getAttribute('src') !== slides[atual].video) {
+        videoAtivo.setAttribute('src', slides[atual].video);
+        videoAtivo.load();
+        videoAtivo.play().catch(() => {});
     }
 
-    // Atualiza textos
+    // --- MÁGICA DO PRELOAD ---
+    // Já deixa engatado o PRÓXIMO vídeo no elemento que está escondido
+    if (atual < slides.length - 1) {
+        const proximoVideoSrc = slides[atual + 1].video;
+        if (videoReserva.getAttribute('src') !== proximoVideoSrc) {
+            videoReserva.setAttribute('src', proximoVideoSrc);
+            videoReserva.load(); // Baixa em segundo plano sem dar play
+        }
+    }
+
+    // Atualiza os textos da tela
     document.getElementById("titulo").textContent = slides[atual].titulo;
     document.getElementById("contador").textContent = `${atual + 1} de ${slides.length}`;
 
-    // Bloqueia os botões se chegar nas pontas
+    // Atualiza os botões das pontas
     btnAnterior.disabled = (atual === 0);
     btnProximo.disabled = (atual === slides.length - 1);
 
     atualizarDots();
 }
 
+// Faz a troca alternando os elementos de vídeo de forma suave
+function alternarVideos() {
+    const videoA = document.getElementById("videoA");
+    const videoB = document.getElementById("videoB");
+
+    usandoVideoA = !usandoVideoA;
+
+    if (usandoVideoA) {
+        videoA.classList.add("visivel");
+        videoB.classList.remove("visivel");
+        videoB.pause(); // Pausa o antigo para poupar processamento
+    } else {
+        videoB.classList.add("visivel");
+        videoA.classList.remove("visivel");
+        videoA.pause();
+    }
+}
+
 function proximo(){
     if(atual < slides.length - 1){
         atual++;
+        alternarVideos(); // Troca a tela para o vídeo que já estava pré-carregado
         atualizar();
     }
 }
@@ -279,22 +323,26 @@ function proximo(){
 function anterior(){
     if(atual > 0){
         atual--;
+        // No caso de voltar, fazemos a troca normal (pode dar mini-delay ao voltar rápido, mas prioriza o fluxo de avanço)
+        alternarVideos(); 
         atualizar();
     }
 }
 
 function irParaSlide(index) {
+    if(index === atual) return;
     atual = index;
+    alternarVideos();
     atualizar();
 }
 
-// Atalhos do teclado (Setas Laterais)
 window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight") proximo();
     if (e.key === "ArrowLeft") anterior();
 });
 
-// Inicialização da interface
+// Inicialização (Configura o primeiro vídeo na abertura)
+document.getElementById("videoA").setAttribute('src', slides[0].video);
 inicializarDots();
 atualizar();
 </script>
