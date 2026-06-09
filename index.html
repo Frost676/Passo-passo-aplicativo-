@@ -92,7 +92,6 @@ h1{
     position: relative;
 }
 
-/* Vídeos sobrepostos (sem autoplay no HTML) */
 .screen video{
     width: 100%;
     height: 100%;
@@ -221,6 +220,7 @@ const slides = [
 
 let atual = 0;
 let usandoVideoA = true;
+let playTimeout = null; // Guarda o timer do delay
 
 function inicializarDots(){
     const dotsContainer = document.getElementById("dots");
@@ -254,6 +254,11 @@ function atualizar(){
     const btnAnterior = document.getElementById("btn-anterior");
     const btnProximo = document.getElementById("btn-proximo");
 
+    // Cancela qualquer play agendado anteriormente (caso o usuário clique rápido)
+    if (playTimeout) {
+        clearTimeout(playTimeout);
+    }
+
     if(slides[atual].orientacao === "landscape"){
         phone.classList.add("landscape");
     } else {
@@ -263,24 +268,28 @@ function atualizar(){
     const videoAtivo = usandoVideoA ? videoA : videoB;
     const videoReserva = usandoVideoA ? videoB : videoA;
 
-    // Atualiza e dá play APENAS no vídeo que está visível na tela
+    // Coloca o arquivo de vídeo atual no player correto
     if (videoAtivo.getAttribute('src') !== slides[atual].video) {
         videoAtivo.setAttribute('src', slides[atual].video);
         videoAtivo.load();
     }
-    // Garante que ele comece do início e dê o play agora
+    
+    // Deixa o vídeo parado no início (frame zero)
+    videoAtivo.pause();
     videoAtivo.currentTime = 0;
-    videoAtivo.play().catch(() => {});
 
-    // --- PRELOAD INTELIGENTE ---
-    // Coloca o próximo vídeo na reserva, carrega, mas deixa pausado no início
+    // --- ADICIONA O DELAY DE 1 SEGUNDO ANTES DO PLAY ---
+    playTimeout = setTimeout(() => {
+        videoAtivo.play().catch(() => {});
+    }, 1000); // 1000 milissegundos = 1 segundo
+
+    // Preload apenas do arquivo do próximo passo (carrega pausado)
     if (atual < slides.length - 1) {
         const proximoVideoSrc = slides[atual + 1].video;
         if (videoReserva.getAttribute('src') !== proximoVideoSrc) {
             videoReserva.setAttribute('src', proximoVideoSrc);
             videoReserva.load(); 
-            videoReserva.pause(); // Força a ficar pausado enquanto carrega
-            videoReserva.currentTime = 0; // Garante frame zero
+            videoReserva.pause();
         }
     }
 
@@ -322,7 +331,6 @@ function anterior(){
     if(atual > 0){
         atual--;
         alternarVideos(); 
-        // Quando voltamos, resetamos o src do reserva para carregar o anterior correto
         const videoReserva = usandoVideoA ? document.getElementById("videoB") : document.getElementById("videoA");
         videoReserva.removeAttribute('src'); 
         atualizar();
@@ -333,7 +341,6 @@ function irParaSlide(index) {
     if(index === atual) return;
     atual = index;
     
-    // Se o usuário pular muitos passos, limpa o reserva para não dar flash do vídeo errado
     const videoReserva = usandoVideoA ? document.getElementById("videoB") : document.getElementById("videoA");
     videoReserva.removeAttribute('src');
     
