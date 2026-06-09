@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutorial do Aplicativo</title>
+
+<style>
+:root {
+    --primary-color: #2563eb;
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    --phone-bg: #0f172a;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body{
+    background: var(--bg-gradient);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: var(--text-main);
+}
+
+h1{
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+#contador{
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 25px;
+}
+
+/* Moldura do Smartphone */
+.phone{
+    width: 340px;
+    height: 680px;
+    background: var(--phone-bg);
+    border-radius: 44px;
+    padding: 12px;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.phone.landscape{
+    width: 680px;
+    height: 340px;
+}
+
+/* Notch Dinâmico */
+.notch{
+    width: 110px;
+    height: 22px;
+    background: #000;
+    border-radius: 0 0 16px 16px;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    transition: opacity 0.3s;
+}
+
+.phone.landscape .notch{
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Tela do Aparelho */
+.screen{
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    background: #000; /* Fundo preto caso o vídeo demore a carregar */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.screen video{
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Garante que o vídeo apareça inteiro sem quebrar */
+}
+
+/* Navegação */
+.nav{
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 25px;
+}
+
+button{
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    background: #fff;
+    color: var(--text-main);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled){
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    color: var(--primary-color);
+}
+
+button:active:not(:disabled){
+    transform: translateY(0);
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Indicadores (Dots) */
+#dots{
+    display: flex;
+    gap: 10px;
+}
+
+.dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dot:hover {
+    background: #94a3b8;
+}
+
+.dot.active{
+    background: var(--primary-color);
+    transform: scale(1.2);
+}
+
+/* Responsividade */
+@media(max-width: 768px){
+    .phone{
+        width: 280px;
+        height: 560px;
+    }
+
+    .phone.landscape{
+        width: 90vw;
+        height: 45vw;
+        max-height: 280px;
+    }
+}
+</style>
+</head>
+<body>
+
+<h1 id="titulo">Passo 1</h1>
+<div id="contador">1 de 8</div>
+
+<div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+        <video id="video" autoplay muted loop playsinline src="01.mp4"></video>
+    </div>
+</div>
+
+<div class="nav">
+    <button id="btn-anterior" onclick="anterior()" aria-label="Passo anterior">◀</button>
+    <div id="dots"></div>
+    <button id="btn-proximo" onclick="proximo()" aria-label="Próximo passo">▶</button>
+</div>
+
+<script>
+const slides = [
+    { video: "01.mp4", titulo: "Passo 1", orientacao: "portrait" },
+    { video: "02.mp4", titulo: "Passo 2", orientacao: "portrait" },
+    { video: "03.mp4", titulo: "Passo 3", orientacao: "portrait" },
+    { video: "04.mp4", titulo: "Passo 4", orientacao: "portrait" },
+    { video: "05.mp4", titulo: "Passo 5", orientacao: "portrait" },
+    { video: "06.mp4", titulo: "Passo 6", orientacao: "landscape" },
+    { video: "07.mp4", titulo: "Passo 7", orientacao: "portrait" },
+    { video: "08.mp4", titulo: "Passo 8", orientacao: "portrait" }
+];
+
+let atual = 0;
+
+// Cria as bolinhas uma única vez ao iniciar
+function inicializarDots(){
+    const dotsContainer = document.getElementById("dots");
+    dotsContainer.innerHTML = "";
+
+    slides.forEach((_, i) => {
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        if(i === atual) dot.classList.add("active");
+        
+        dot.addEventListener("click", () => irParaSlide(i));
+        dotsContainer.appendChild(dot);
+    });
+}
+
+function atualizarDots() {
+    const dots = document.querySelectorAll(".dot");
+    dots.forEach((dot, i) => {
+        if (i === atual) {
+            dot.classList.add("active");
+        } else {
+            dot.classList.remove("active");
+        }
+    });
+}
+
+function atualizar(){
+    const video = document.getElementById("video");
+    const phone = document.querySelector(".phone");
+    const btnAnterior = document.getElementById("btn-anterior");
+    const btnProximo = document.getElementById("btn-proximo");
+
+    // Gerencia orientação do telefone
+    if(slides[atual].orientacao === "landscape"){
+        phone.classList.add("landscape");
+    } else {
+        phone.classList.remove("landscape");
+    }
+
+    // Atualiza a fonte do vídeo de maneira compatível com navegadores estritos
+    if (video.getAttribute('src') !== slides[atual].video) {
+        video.setAttribute('src', slides[atual].video);
+        video.load(); // Força o navegador a carregar o novo arquivo de vídeo
+        video.play().catch(error => {
+            console.log("A reprodução automática foi prevenida ou o vídeo não foi encontrado:", error);
+        });
+    }
+
+    // Atualiza textos
+    document.getElementById("titulo").textContent = slides[atual].titulo;
+    document.getElementById("contador").textContent = `${atual + 1} de ${slides.length}`;
+
+    // Bloqueia os botões se chegar nas pontas
+    btnAnterior.disabled = (atual === 0);
+    btnProximo.disabled = (atual === slides.length - 1);
+
+    atualizarDots();
+}
+
+function proximo(){
+    if(atual < slides.length - 1){
+        atual++;
+        atualizar();
+    }
+}
+
+function anterior(){
+    if(atual > 0){
+        atual--;
+        atualizar();
+    }
+}
+
+function irParaSlide(index) {
+    atual = index;
+    atualizar();
+}
+
+// Atalhos do teclado (Setas Laterais)
+window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") proximo();
+    if (e.key === "ArrowLeft") anterior();
+});
+
+// Inicialização da interface
+inicializarDots();
+atualizar();
+</script>
+
+</body>
+</html>
